@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BuzzX - Quiz Buzzer System</title>
+
+  <!-- External Libraries -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <!-- Notifications Container -->
+  <div id="notificationsContainer"></div>
+
+  <!-- Install Prompt -->
+  <div id="installPrompt" class="install-prompt hidden">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-bold" style="color: var(--text-primary)">Install BuzzX</h3>
+      <button onclick="closeInstallPrompt()" style="color: var(--text-secondary)">
+        <i class="fa-solid fa-times"></i>
+      </button>
+    </div>
+    <p class="text-sm mb-3" style="color: var(--text-secondary)">Install BuzzX on your device for quick access!</p>
+    <button onclick="installApp()" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-4 py-2 rounded-lg font-semibold">
+      <i class="fa-solid fa-download mr-2"></i>Install
+    </button>
+  </div>
+
+  <!-- Header -->
+  <header class="glass-card shadow-lg py-4 px-4 sticky top-0 z-50">
+    <div class="container mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-bolt text-3xl text-cyan-600"></i>
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+            <span data-i18n="app_title">BuzzX</span>
+          </h1>
+          <p class="text-xs md:text-sm" style="color: var(--text-secondary)">
+            <i class="fa-solid fa-gamepad text-cyan-600"></i> <span data-i18n="subtitle">Live Quiz Platform</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Settings Dropdown -->
+        <div class="relative">
+          <button onclick="toggleSettingsDropdown()" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Settings">
+            <i class="fa-solid fa-gear text-xl" style="color: var(--text-primary)"></i>
+          </button>
+          <div id="settingsDropdown" class="dropdown-menu">
+            <a onclick="toggleLanguage()" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" style="color: var(--text-primary)">
+              <i class="fa-solid fa-language mr-2"></i><span data-i18n="language">Language</span>
+            </a>
+            <a onclick="toggleSound()" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" style="color: var(--text-primary)">
+              <i id="soundIcon" class="fa-solid fa-volume-high mr-2"></i><span data-i18n="sound">Sound</span>
+            </a>
+            <a onclick="toggleTheme()" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" style="color: var(--text-primary)">
+              <i id="themeIcon" class="fa-solid fa-moon mr-2"></i><span data-i18n="dark_mode">Dark Mode</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Leaderboard Button -->
+        <button onclick="showLeaderboard()" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Leaderboard">
+          <i class="fa-solid fa-trophy text-xl text-yellow-500"></i>
+        </button>
+
+        <!-- Profile Menu -->
+        <div id="profileMenu" class="hidden relative">
+          <button onclick="toggleProfileDropdown()" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+            <div id="headerAvatar" class="user-icon"></div>
+            <span id="headerUsername" class="font-semibold hidden md:inline" style="color: var(--text-primary)"></span>
+            <i class="fa-solid fa-chevron-down text-sm" style="color: var(--text-secondary)"></i>
+          </button>
+          <div id="profileDropdown" class="dropdown-menu">
+            <div class="p-3 border-b" style="border-color: var(--border-color)">
+              <p class="font-bold" style="color: var(--text-primary)" id="dropdownUsername"></p>
+              <p class="text-xs" style="color: var(--text-secondary)" id="dropdownRole"></p>
+            </div>
+            <div id="profileMenuItems">
+              <a onclick="showProfile()" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" style="color: var(--text-primary)">
+                <i class="fa-solid fa-user mr-2"></i><span data-i18n="my_profile">My Profile</span>
+              </a>
+              <a onclick="showMatchHistory()" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" style="color: var(--text-primary)">
+                <i class="fa-solid fa-history mr-2"></i><span data-i18n="match_history">Match History</span>
+              </a>
+              <a id="menuMyRooms" onclick="showMyRooms()" class="hidden block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" style="color: var(--text-primary)">
+                <i class="fa-solid fa-door-open mr-2"></i><span data-i18n="my_rooms">My Active Rooms</span>
+              </a>
+              <a id="menuAdminPanel" onclick="showAdminPanel()" class="hidden block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" style="color: var(--text-primary)">
+                <i class="fa-solid fa-user-shield mr-2"></i><span data-i18n="admin_panel">Admin Panel</span>
+              </a>
+            </div>
+            <a onclick="logout()" class="block px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer text-red-600">
+              <i class="fa-solid fa-sign-out-alt mr-2"></i><span data-i18n="logout">Logout</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto p-4 md:p-6">
+    <!-- Authentication Screen -->
+    <div id="authScreen" class="max-w-md mx-auto mt-8">
+      <div class="glass-card rounded-2xl shadow-xl p-8">
+        <div class="text-center mb-8">
+          <i class="fa-solid fa-user-circle text-6xl text-cyan-600 mb-4"></i>
+          <h2 class="text-3xl font-bold mb-2" style="color: var(--text-primary)" data-i18n="welcome">Welcome to BuzzX</h2>
+          <p class="text-sm" style="color: var(--text-secondary)" data-i18n="auth_subtitle">Sign in or create an account</p>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginForm" class="space-y-4">
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-600"></i>
+            <input id="loginUsername" class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none transition" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Username">
+          </div>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-600"></i>
+            <input id="loginPassword" type="password" class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none transition" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Password">
+          </div>
+          <button onclick="login()" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105">
+            <i class="fa-solid fa-sign-in-alt mr-2"></i><span data-i18n="login">Login</span>
+          </button>
+          <p class="text-center text-sm" style="color: var(--text-secondary)">
+            <span data-i18n="no_account">Don't have an account?</span>
+            <button onclick="showSignup()" class="text-cyan-600 font-semibold hover:underline ml-1" data-i18n="signup">Sign Up</button>
+          </p>
+        </div>
+
+        <!-- Signup Form -->
+        <div id="signupForm" class="hidden space-y-4">
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600"></i>
+            <input id="signupUsername" class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none transition" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Username (3-20 chars, letters/numbers only)">
+          </div>
+          <div class="relative">
+            <i class="fa-solid fa-signature absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600"></i>
+            <input id="signupDisplayName" class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none transition" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Display Name">
+          </div>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600"></i>
+            <input id="signupPassword" type="password" class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none transition" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Password (min 6 chars)">
+          </div>
+          <button onclick="signup()" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105">
+            <i class="fa-solid fa-user-plus mr-2"></i><span data-i18n="create_account">Create Account</span>
+          </button>
+          <p class="text-center text-sm" style="color: var(--text-secondary)">
+            <span data-i18n="have_account">Already have an account?</span>
+            <button onclick="showLogin()" class="text-cyan-600 font-semibold hover:underline ml-1" data-i18n="login">Login</button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Home Screen -->
+    <div id="homeScreen" class="hidden max-w-2xl mx-auto mt-8">
+      <div class="glass-card rounded-2xl shadow-xl p-8">
+        <div class="text-center mb-8">
+          <i class="fa-solid fa-gamepad text-6xl text-cyan-600 mb-4"></i>
+          <h2 class="text-3xl font-bold mb-2" style="color: var(--text-primary)" data-i18n="welcome_quiz">Welcome to BuzzX</h2>
+          <p class="text-sm" style="color: var(--text-secondary)" data-i18n="choose_option">Choose an option to get started</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <button id="createRoomBtn" onclick="showCreateRoom()" class="hidden bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-6 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:scale-105">
+            <i class="fa-solid fa-plus-circle text-3xl mb-2"></i>
+            <div data-i18n="create_room">Create Room</div>
+          </button>
+          <button onclick="showJoinRoom()" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-8 py-6 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:scale-105">
+            <i class="fa-solid fa-right-to-bracket text-3xl mb-2"></i>
+            <div data-i18n="join_room">Join Room</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Room Section -->
+    <div id="createRoomBox" class="hidden max-w-md mx-auto mt-8">
+      <div class="glass-card rounded-2xl shadow-xl p-6 md:p-8">
+        <div class="text-center mb-6">
+          <i class="fa-solid fa-plus-circle text-5xl text-green-600 mb-4"></i>
+          <h2 class="text-2xl font-bold mb-2" style="color: var(--text-primary)" data-i18n="create_new_room">Create New Room</h2>
+          <p class="text-sm" style="color: var(--text-secondary)" data-i18n="enter_room_details">Enter room details</p>
+        </div>
+        <div class="space-y-4">
+          <div class="relative">
+            <i class="fa-solid fa-signature absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600"></i>
+            <input id="roomNameInput" class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none transition" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Room Name">
+          </div>
+          <button onclick="createRoom()" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105">
+            <i class="fa-solid fa-check-circle mr-2"></i><span data-i18n="create_room">Create Room</span>
+          </button>
+          <button onclick="backToHome()" class="w-full bg-gray-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+            <i class="fa-solid fa-arrow-left mr-2"></i><span data-i18n="back">Back</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Room Created Success -->
+    <div id="roomCreatedBox" class="hidden max-w-md mx-auto mt-8">
+      <div class="glass-card rounded-2xl shadow-xl p-6 md:p-8">
+        <div class="text-center mb-6">
+          <i class="fa-solid fa-check-circle text-5xl text-green-600 mb-4"></i>
+          <h2 class="text-2xl font-bold mb-2" style="color: var(--text-primary)" data-i18n="room_created">Room Created Successfully!</h2>
+          <p class="text-sm" style="color: var(--text-secondary)" data-i18n="share_room_id">Share this Room ID with participants</p>
+        </div>
+        <div class="mb-6">
+          <label class="block text-sm font-semibold mb-2" style="color: var(--text-primary)" data-i18n="room_id">Room ID</label>
+          <div class="flex gap-2">
+            <div class="room-code-container flex-1">
+              <input id="generatedRoomId" readonly class="w-full px-4 py-3 rounded-xl font-mono text-lg font-bold text-center" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--accent-primary)">
+              <i id="roomCodeToggle" onclick="toggleRoomCodeVisibility()" class="room-code-toggle fa-solid fa-eye"></i>
+            </div>
+            <button onclick="copyRoomId()" class="bg-cyan-600 text-white px-4 py-3 rounded-xl hover:bg-cyan-700 transition" title="Copy Room ID">
+              <i class="fa-solid fa-copy"></i>
+            </button>
+          </div>
+        </div>
+        <div class="mb-6 text-center">
+          <div id="roomQrCode" class="inline-block bg-white p-4 rounded-xl mb-3"></div>
+          <p class="text-sm" style="color: var(--text-secondary)" data-i18n="scan_qr">Scan QR code to join</p>
+        </div>
+        <button onclick="enterAsHost()" class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105">
+          <i class="fa-solid fa-crown mr-2"></i><span data-i18n="enter_as_host">Enter as Host</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Join Room Section -->
+    <div id="joinBox" class="hidden max-w-md mx-auto mt-8">
+      <div class="glass-card rounded-2xl shadow-xl p-6 md:p-8">
+        <div class="text-center mb-6">
+          <i class="fa-solid fa-right-to-bracket text-5xl text-cyan-600 mb-4"></i>
+          <h2 class="text-2xl font-bold mb-2" style="color: var(--text-primary)" data-i18n="join_quiz_room">Join Quiz Room</h2>
+          <p class="text-sm" style="color: var(--text-secondary)" data-i18n="enter_room_id">Enter Room ID to participate</p>
+        </div>
+        <div class="space-y-4">
+          <div class="relative">
+            <i class="fa-solid fa-door-open absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-600"></i>
+            <input id="roomIdInput" class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none transition" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Room ID">
+          </div>
+          <button onclick="joinRoom()" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105">
+            <i class="fa-solid fa-right-to-bracket mr-2"></i><span data-i18n="join_room">Join Room</span>
+          </button>
+          <button onclick="backToHome()" class="w-full bg-gray-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+            <i class="fa-solid fa-arrow-left mr-2"></i><span data-i18n="back">Back</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Section -->
+    <div id="game" class="hidden">
+      <!-- Leave Room Button -->
+      <div class="fixed bottom-6 left-6 z-40">
+        <button onclick="leaveRoom()" class="leave-room-btn text-white px-6 py-3 rounded-xl font-semibold shadow-xl flex items-center gap-2">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span data-i18n="leave_room">Leave Room</span>
+        </button>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Main Game Area -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Room Info Card -->
+          <div class="glass-card room-info-card rounded-2xl shadow-xl p-6">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h3 class="text-xl font-bold mb-1" style="color: var(--text-primary)" id="currentRoomName">Room Name</h3>
+                <div class="flex items-center gap-3">
+                  <span class="text-sm" style="color: var(--text-secondary)">
+                    Room ID: <span class="font-mono font-bold text-cyan-600" id="currentRoomId">------</span>
+                  </span>
+                  <button onclick="copyCurrentRoomId()" class="text-cyan-600 hover:text-cyan-700" title="Copy Room ID">
+                    <i class="fa-solid fa-copy"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button id="toggleQrBtn" onclick="toggleGameQR()" class="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 transition text-sm">
+                  <i class="fa-solid fa-qrcode mr-1"></i><span data-i18n="show_qr">Show QR</span>
+                </button>
+              </div>
+            </div>
+            <div id="gameQrSection" class="hidden mt-4 text-center border-t pt-4" style="border-color: var(--border-color)">
+              <div id="gameQrCode" class="inline-block bg-white p-4 rounded-xl mb-2"></div>
+              <p class="text-xs" style="color: var(--text-secondary)" data-i18n="scan_join">Scan to join instantly</p>
+            </div>
+          </div>
+
+          <!-- Question Display -->
+          <div class="glass-card rounded-2xl shadow-xl p-6">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-clipboard-question text-2xl text-cyan-600"></i>
+                <h2 class="text-xl font-bold" style="color: var(--text-primary)" data-i18n="current_question">Current Question</h2>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 bg-red-100 dark:bg-red-900/30 px-4 py-2 rounded-full">
+                  <i class="fa-solid fa-clock text-red-600"></i>
+                  <span class="font-bold text-red-600"><span id="timer">0</span>s</span>
+                </div>
+                <div id="timerStatusIndicator" class="timer-status timer-stopped hidden">
+                  <i id="timerStatusIcon" class="fa-solid fa-stop"></i>
+                  <span id="timerStatusText">Stopped</span>
+                </div>
+              </div>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
+              <div id="timerProgress" class="progress-bar h-2" style="width: 100%"></div>
+            </div>
+            <p id="question" class="text-lg font-medium min-h-[60px] flex items-center justify-center" style="color: var(--text-primary)">
+              <span data-i18n="waiting_question">Waiting for question...</span>
+            </p>
+            <div id="questionPointsDisplay" class="mt-3 text-center hidden">
+              <span class="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 px-4 py-2 rounded-full font-bold">
+                <i class="fa-solid fa-star mr-1"></i><span id="currentQuestionPoints">0</span> <span data-i18n="points">Points</span>
+              </span>
+            </div>
+            <div id="wrongAttemptsContainer" class="hidden wrong-attempts-container">
+              <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-times-circle text-red-600"></i>
+                <span class="text-sm font-semibold text-red-600">Wrong Attempts:</span>
+              </div>
+              <div id="wrongAttemptsList"></div>
+            </div>
+            <div id="questionStatsContainer" class="hidden mt-4 pt-4 border-t" style="border-color: var(--border-color)">
+              <div class="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <div class="text-2xl font-bold text-cyan-600" id="totalBuzzAttempts">0</div>
+                  <div class="text-xs" style="color: var(--text-secondary)">Total Attempts</div>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold text-red-600" id="wrongAnswersCount">0</div>
+                  <div class="text-xs" style="color: var(--text-secondary)">Wrong Answers</div>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold text-green-600" id="remainingPlayersCount">0</div>
+                  <div class="text-xs" style="color: var(--text-secondary)">Can Still Buzz</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Teams Mode Section -->
+          <div id="teamsSection" class="hidden glass-card rounded-2xl shadow-xl p-6">
+            <h3 class="text-lg font-bold mb-4" style="color: var(--text-primary)">
+              <i class="fa-solid fa-users-line text-cyan-600 mr-2"></i><span data-i18n="team_buzzer">Team Buzzer</span>
+            </h3>
+            <div id="teamButtons" class="grid grid-cols-2 gap-4"></div>
+            <div id="teamScores" class="mt-4 grid grid-cols-2 gap-3"></div>
+          </div>
+
+          <!-- Individual Buzz Button -->
+          <div id="individualBuzzSection" class="text-center">
+            <button id="buzzBtn" onclick="buzz()" class="bg-gradient-to-r from-red-500 to-red-600 text-white px-12 py-6 rounded-full text-2xl font-bold shadow-2xl hover:from-red-600 hover:to-red-700 transition transform hover:scale-105 active:scale-95">
+              <i class="fa-solid fa-bolt mr-2"></i><span data-i18n="buzz">BUZZ!</span>
+            </button>
+            <p id="buzzedInfo" class="mt-4 text-lg font-semibold text-green-600"></p>
+            <p id="buzzCooldownInfo" class="mt-2 text-sm text-yellow-600 hidden">
+              <i class="fa-solid fa-hourglass-half mr-1"></i>Cooldown: <span id="buzzCooldownTimer">0</span>s
+            </p>
+          </div>
+
+          <!-- Players List -->
+          <div class="glass-card rounded-2xl shadow-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-ranking-star text-xl text-cyan-600"></i>
+                <h3 class="text-lg font-bold" style="color: var(--text-primary)">
+                  <span data-i18n="active_players">Active Players</span>
+                  <span class="ml-2 inline-flex items-center justify-center w-7 h-7 text-sm font-bold text-white bg-gradient-to-r from-cyan-600 to-blue-600 rounded-full">
+                    <span id="playerCount">0</span>
+                  </span>
+                </h3>
+              </div>
+            </div>
+            <ul id="playersList" class="space-y-2 max-h-96 overflow-y-auto scrollbar-thin"></ul>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          <!-- Chat Panel -->
+          <div class="glass-card rounded-2xl shadow-xl p-6">
+            <h3 class="text-lg font-bold mb-4" style="color: var(--text-primary)">
+              <i class="fa-solid fa-comments text-cyan-600 mr-2"></i><span data-i18n="chat">Chat</span>
+            </h3>
+            <div id="typingIndicator" class="hidden mb-2 text-sm" style="color: var(--text-secondary)">
+              <span class="typing-indicator">
+                <span></span><span></span><span></span>
+              </span>
+              <span data-i18n="typing">is typing...</span>
+            </div>
+            <div id="chatContainer" class="chat-container scrollbar-thin mb-4 space-y-2 flex flex-col" style="background: var(--bg-secondary); border-radius: 0.75rem; padding: 0.75rem;"></div>
+            <div class="flex gap-2 mb-2 justify-center">
+              <span class="emoji-reaction" onclick="sendEmoji('👍')">👍</span>
+              <span class="emoji-reaction" onclick="sendEmoji('❤️')">❤️</span>
+              <span class="emoji-reaction" onclick="sendEmoji('😂')">😂</span>
+              <span class="emoji-reaction" onclick="sendEmoji('🎉')">🎉</span>
+              <span class="emoji-reaction" onclick="sendEmoji('🔥')">🔥</span>
+            </div>
+            <div class="flex gap-2">
+              <input id="chatInput" placeholder="Type message..." class="flex-1 px-3 py-2 rounded-lg focus:outline-none text-sm" style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary)">
+              <button onclick="sendChat()" class="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 transition">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Host Controls -->
+      <div id="hostControls" class="hidden mt-6">
+        <div class="glass-card rounded-2xl shadow-2xl p-6">
+          <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-crown text-3xl text-yellow-500"></i>
+              <h2 class="text-2xl font-bold" style="color: var(--text-primary)" data-i18n="host_control_panel">Host Control Panel</h2>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="exportResults()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                <i class="fa-solid fa-download mr-2"></i><span data-i18n="export">Export CSV</span>
+              </button>
+              <button onclick="showAnswerHistory()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                <i class="fa-solid fa-history mr-2"></i>Answer History
+              </button>
+            </div>
+          </div>
+          <div class="grid md:grid-cols-3 gap-4 mb-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-semibold mb-2" style="color: var(--text-primary)" data-i18n="question">Question</label>
+              <textarea id="hostQuestion" rows="2" class="w-full px-4 py-3 rounded-xl focus:outline-none" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Enter question"></textarea>
+            </div>
+            <div class="space-y-2">
+              <div>
+                <label class="block text-sm font-semibold mb-2" style="color: var(--text-primary)" data-i18n="timer_sec">Timer (sec)</label>
+                <input id="hostTimer" type="number" value="30" min="5" max="120" class="w-full px-4 py-3 rounded-xl focus:outline-none" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold mb-2" style="color: var(--text-primary)" data-i18n="points">Points</label>
+                <input id="questionPoints" type="number" value="1" min="1" max="10" class="w-full px-4 py-3 rounded-xl focus:outline-none" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)">
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-3 mb-6">
+            <button onclick="startQuestion()" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+              <i class="fa-solid fa-play mr-2"></i><span data-i18n="start_question">Start Question</span>
+            </button>
+            <button onclick="markCorrect()" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+              <i class="fa-solid fa-circle-check mr-2"></i><span data-i18n="correct">Correct</span>
+            </button>
+            <button onclick="markWrong()" class="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+              <i class="fa-solid fa-circle-xmark mr-2"></i><span data-i18n="wrong">Wrong</span>
+            </button>
+            <button onclick="resetBuzz()" class="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+              <i class="fa-solid fa-rotate mr-2"></i><span data-i18n="reset">Reset</span>
+            </button>
+            <button onclick="showQuestionBank()" class="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+              <i class="fa-solid fa-book mr-2"></i><span data-i18n="question_bank">Question Bank</span>
+            </button>
+            <button onclick="toggleTeamsMode()" class="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+              <i class="fa-solid fa-users-line mr-2"></i><span data-i18n="teams_mode">Teams Mode</span>
+            </button>
+            <button onclick="showMyQuestionBank()" class="bg-gradient-to-r from-pink-500 to-pink-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+              <i class="fa-solid fa-bookmark mr-2"></i><span data-i18n="my_questions">My Questions</span>
+            </button>
+          </div>
+          <div id="teamManagement" class="hidden mb-4 p-4 rounded-xl" style="background: var(--bg-secondary)">
+            <h4 class="font-bold mb-3" style="color: var(--text-primary)" data-i18n="team_management">Team Management</h4>
+            <div class="flex gap-2 mb-3">
+              <input id="teamNameInput" placeholder="Team name" class="flex-1 px-3 py-2 rounded-lg" style="background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary)">
+              <button onclick="addTeam()" class="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 transition">
+                <i class="fa-solid fa-plus"></i> <span data-i18n="add">Add</span>
+              </button>
+            </div>
+            <div id="teamsList" class="space-y-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Profile Modal -->
+  <div id="profileModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-4xl w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" style="color: var(--text-primary)">
+          <i class="fa-solid fa-user-circle text-cyan-600 mr-2"></i><span data-i18n="my_profile">My Profile</span>
+        </h2>
+        <button onclick="closeProfile()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="md:col-span-1">
+          <div class="text-center mb-4">
+            <div id="profileAvatar" class="user-icon user-icon-large mx-auto mb-3"></div>
+            <h3 id="profileDisplayName" class="text-xl font-bold mb-1" style="color: var(--text-primary)"></h3>
+            <p id="profileUsername" class="text-sm font-mono" style="color: var(--text-secondary)"></p>
+            <p id="profileRole" class="text-sm font-semibold mt-1"></p>
+          </div>
+          <button onclick="showEditProfile()" class="w-full bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 transition mb-3">
+            <i class="fa-solid fa-edit mr-2"></i><span data-i18n="edit_profile">Edit Profile</span>
+          </button>
+        </div>
+        <div class="md:col-span-2">
+          <h4 class="font-bold mb-4" style="color: var(--text-primary)">
+            <i class="fa-solid fa-chart-line text-cyan-600 mr-2"></i><span data-i18n="statistics">Statistics</span>
+          </h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="stat-card p-4 rounded-xl text-center">
+              <i class="fa-solid fa-star text-3xl text-yellow-500 mb-2"></i>
+              <div class="text-2xl font-bold" style="color: var(--text-primary)" id="statTotalScore">0</div>
+              <div class="text-xs" style="color: var(--text-secondary)" data-i18n="total_score">Total Score</div>
+            </div>
+            <div class="stat-card p-4 rounded-xl text-center">
+              <i class="fa-solid fa-check-circle text-3xl text-green-500 mb-2"></i>
+              <div class="text-2xl font-bold" style="color: var(--text-primary)" id="statCorrect">0</div>
+              <div class="text-xs" style="color: var(--text-secondary)" data-i18n="correct_answers">Correct</div>
+            </div>
+            <div class="stat-card p-4 rounded-xl text-center">
+              <i class="fa-solid fa-times-circle text-3xl text-red-500 mb-2"></i>
+              <div class="text-2xl font-bold" style="color: var(--text-primary)" id="statWrong">0</div>
+              <div class="text-xs" style="color: var(--text-secondary)" data-i18n="wrong_answers">Wrong</div>
+            </div>
+            <div class="stat-card p-4 rounded-xl text-center">
+              <i class="fa-solid fa-bolt text-3xl text-orange-500 mb-2"></i>
+              <div class="text-2xl font-bold" style="color: var(--text-primary)" id="statFirstBuzz">0</div>
+              <div class="text-xs" style="color: var(--text-secondary)" data-i18n="first_buzzes">First Buzzes</div>
+            </div>
+          </div>
+          <div class="glass-card p-4 rounded-xl">
+            <h5 class="font-bold mb-3" style="color: var(--text-primary)" data-i18n="performance">Performance Overview</h5>
+            <div class="chart-container">
+              <canvas id="performanceChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div id="editProfileModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" style="color: var(--text-primary)" data-i18n="edit_profile">Edit Profile</h2>
+        <button onclick="closeEditProfile()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold mb-2" style="color: var(--text-primary)" data-i18n="display_name">Display Name</label>
+          <input id="editDisplayName" class="w-full px-4 py-3 rounded-xl" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)">
+        </div>
+        <button onclick="saveProfile()" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+          <i class="fa-solid fa-save mr-2"></i><span data-i18n="save_changes">Save Changes</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Match History Modal -->
+  <div id="matchHistoryModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-4xl w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" style="color: var(--text-primary)">
+          <i class="fa-solid fa-history text-cyan-600 mr-2"></i><span data-i18n="match_history">Match History</span>
+        </h2>
+        <button onclick="closeMatchHistory()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div id="historyList" class="space-y-3 max-h-96 overflow-y-auto scrollbar-thin"></div>
+    </div>
+  </div>
+
+  <!-- My Rooms Modal -->
+  <div id="myRoomsModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-3xl w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" style="color: var(--text-primary)">
+          <i class="fa-solid fa-door-open text-yellow-500 mr-2"></i><span data-i18n="my_active_rooms">My Active Rooms</span>
+        </h2>
+        <button onclick="closeMyRooms()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div id="myRoomsList" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Modal -->
+  <div id="leaderboardModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-2xl w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" style="color: var(--text-primary)">
+          <i class="fa-solid fa-trophy text-yellow-500 mr-2"></i><span data-i18n="global_leaderboard">Global Leaderboard</span>
+        </h2>
+        <button onclick="closeLeaderboard()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div class="flex gap-2 mb-4">
+        <button onclick="switchLeaderboardTab('score')" id="lbTabScore" class="flex-1 px-4 py-2 rounded-lg bg-cyan-600 text-white font-semibold">
+          <i class="fa-solid fa-star mr-2"></i><span data-i18n="by_score">By Score</span>
+        </button>
+        <button onclick="switchLeaderboardTab('accuracy')" id="lbTabAccuracy" class="flex-1 px-4 py-2 rounded-lg font-semibold" style="background: var(--bg-secondary); color: var(--text-primary)">
+          <i class="fa-solid fa-bullseye mr-2"></i><span data-i18n="by_accuracy">By Accuracy</span>
+        </button>
+      </div>
+      <div id="leaderboardList" class="space-y-2 max-h-96 overflow-y-auto scrollbar-thin"></div>
+    </div>
+  </div>
+
+  <!-- My Question Bank Modal -->
+  <div id="myQuestionBankModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-3xl w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" style="color: var(--text-primary)">
+          <i class="fa-solid fa-bookmark text-pink-600 mr-2"></i><span data-i18n="my_question_bank">My Question Bank</span>
+        </h2>
+        <button onclick="closeMyQuestionBank()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div class="mb-4 flex gap-2">
+        <input id="saveQuestionInput" placeholder="Enter question to save..." class="flex-1 px-4 py-3 rounded-xl" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)">
+        <button onclick="saveQuestionToBank()" class="bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 transition">
+          <i class="fa-solid fa-plus mr-2"></i><span data-i18n="save">Save</span>
+        </button>
+      </div>
+      <div id="savedQuestionsList" class="space-y-2 max-h-96 overflow-y-auto scrollbar-thin"></div>
+    </div>
+  </div>
+
+  <!-- Question Bank Modal -->
+  <div id="questionBankModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-2xl w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" style="color: var(--text-primary)">
+          <i class="fa-solid fa-book text-cyan-600 mr-2"></i><span data-i18n="question_bank">Question Bank</span>
+        </h2>
+        <button onclick="closeQuestionBank()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-semibold mb-2" style="color: var(--text-primary)" data-i18n="upload_csv">Upload CSV/Excel File</label>
+        <input type="file" id="questionFile" accept=".csv,.xlsx,.xls" class="w-full px-4 py-3 rounded-xl" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)">
+        <p class="text-xs mt-2" style="color: var(--text-secondary)">Format: question,answer (one per line)</p>
+      </div>
+      <div class="flex gap-3 mb-4">
+        <button onclick="loadQuestions()" class="flex-1 bg-cyan-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-cyan-700 transition">
+          <i class="fa-solid fa-upload mr-2"></i><span data-i18n="load_questions">Load Questions</span>
+        </button>
+        <button onclick="useRandomQuestion()" class="flex-1 bg-purple-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-purple-700 transition">
+          <i class="fa-solid fa-random mr-2"></i><span data-i18n="random">Random</span>
+        </button>
+        <button onclick="useNextQuestion()" class="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-blue-700 transition">
+          <i class="fa-solid fa-arrow-right mr-2"></i><span data-i18n="next">Next</span>
+        </button>
+      </div>
+      <div id="questionsList" class="max-h-64 overflow-y-auto scrollbar-thin space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Answer Input Modal -->
+  <div id="answerModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4">
+      <div class="text-center mb-6">
+        <i class="fa-solid fa-comment-dots text-5xl text-cyan-600 mb-4"></i>
+        <h2 class="text-2xl font-bold mb-2" style="color: var(--text-primary)" data-i18n="enter_answer">Enter Your Answer</h2>
+        <p class="text-sm" style="color: var(--text-secondary)" data-i18n="type_response">Type your response below</p>
+      </div>
+      <div class="space-y-4">
+        <textarea id="playerAnswer" rows="3" class="w-full px-4 py-3 rounded-xl focus:outline-none" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" placeholder="Your answer..."></textarea>
+        <button onclick="submitAnswer()" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+          <i class="fa-solid fa-paper-plane mr-2"></i><span data-i18n="submit_answer">Submit Answer</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Answer History Modal -->
+  <div id="answerHistoryModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-3xl w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold" style="color: var(--text-primary)">
+          <i class="fa-solid fa-history text-purple-600 mr-2"></i>Answer History
+        </h2>
+        <button onclick="closeAnswerHistory()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div id="answerHistoryList" class="space-y-2 max-h-96 overflow-y-auto scrollbar-thin"></div>
+    </div>
+  </div>
+
+  <!-- Admin Panel Modal -->
+  <div id="adminPanelModal" class="modal">
+    <div class="modal-content glass-card rounded-2xl shadow-2xl p-6 max-w-6xl w-full mx-4">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-shield-halved text-3xl text-red-600"></i>
+          <h2 class="text-2xl font-bold" style="color: var(--text-primary)" data-i18n="admin_control_panel">Admin Control Panel</h2>
+        </div>
+        <button onclick="closeAdminPanel()" class="text-2xl" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div class="flex gap-2 mb-6 border-b overflow-x-auto" style="border-color: var(--border-color)">
+        <button onclick="switchAdminTab('dashboard')" id="adminTabDashboard" class="px-4 py-2 font-semibold border-b-2 border-red-600 text-red-600 whitespace-nowrap">
+          <i class="fa-solid fa-chart-pie mr-2"></i><span data-i18n="dashboard">Dashboard</span>
+        </button>
+        <button onclick="switchAdminTab('rooms')" id="adminTabRooms" class="px-4 py-2 font-semibold whitespace-nowrap" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-door-open mr-2"></i><span data-i18n="active_rooms">Active Rooms</span>
+        </button>
+        <button onclick="switchAdminTab('users')" id="adminTabUsers" class="px-4 py-2 font-semibold whitespace-nowrap" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-users mr-2"></i><span data-i18n="manage_users">Manage Users</span>
+        </button>
+        <button onclick="switchAdminTab('logs')" id="adminTabLogs" class="px-4 py-2 font-semibold whitespace-nowrap" style="color: var(--text-secondary)">
+          <i class="fa-solid fa-list mr-2"></i><span data-i18n="activity_logs">Activity Logs</span>
+        </button>
+      </div>
+
+      <!-- Dashboard Tab -->
+      <div id="adminDashboardTab">
+        <div class="grid md:grid-cols-4 gap-4 mb-6">
+          <div class="stat-card p-4 rounded-xl text-center">
+            <i class="fa-solid fa-users text-3xl text-cyan-600 mb-2"></i>
+            <div class="text-2xl font-bold" style="color: var(--text-primary)" id="adminTotalUsers">0</div>
+            <div class="text-xs" style="color: var(--text-secondary)" data-i18n="total_users">Total Users</div>
+          </div>
+          <div class="stat-card p-4 rounded-xl text-center">
+            <i class="fa-solid fa-door-open text-3xl text-green-600 mb-2"></i>
+            <div class="text-2xl font-bold" style="color: var(--text-primary)" id="adminActiveRooms">0</div>
+            <div class="text-xs" style="color: var(--text-secondary)" data-i18n="active_rooms">Active Rooms</div>
+          </div>
+          <div class="stat-card p-4 rounded-xl text-center">
+            <i class="fa-solid fa-crown text-3xl text-yellow-600 mb-2"></i>
+            <div class="text-2xl font-bold" style="color: var(--text-primary)" id="adminTotalHosts">0</div>
+            <div class="text-xs" style="color: var(--text-secondary)" data-i18n="total_hosts">Total Hosts</div>
+          </div>
+          <div class="stat-card p-4 rounded-xl text-center">
+            <i class="fa-solid fa-chart-line text-3xl text-purple-600 mb-2"></i>
+            <div class="text-2xl font-bold" style="color: var(--text-primary)" id="adminTodayActivity">0</div>
+            <div class="text-xs" style="color: var(--text-secondary)" data-i18n="today_activity">Today's Activity</div>
+          </div>
+        </div>
+        <div class="glass-card p-6 rounded-xl">
+          <h3 class="font-bold mb-4" style="color: var(--text-primary)" data-i18n="activity_chart">Activity Overview</h3>
+          <div class="chart-container">
+            <canvas id="adminActivityChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Rooms Tab -->
+      <div id="adminRoomsTab" class="hidden">
+        <div id="activeRoomsList" class="space-y-3"></div>
+      </div>
+
+      <!-- Manage Users Tab -->
+      <div id="adminUsersTab" class="hidden">
+        <div class="mb-4">
+          <div class="relative">
+            <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+            <input id="userSearchInput" placeholder="Search users..." class="w-full pl-12 pr-4 py-3 rounded-xl" style="background: var(--bg-secondary); border: 2px solid var(--border-color); color: var(--text-primary)" onkeyup="filterUsers()">
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr style="color: var(--text-primary)">
+                <th class="text-left p-2">Firestore ID</th>
+                <th class="text-left p-2">Username</th>
+                <th class="text-left p-2">Display Name</th>
+                <th class="text-left p-2">Role</th>
+                <th class="text-left p-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Activity Logs Tab -->
+      <div id="adminLogsTab" class="hidden">
+        <h3 class="text-lg font-bold mb-3" style="color: var(--text-primary)" data-i18n="recent_activity">Recent Activity</h3>
+        <div id="activityLogs" class="space-y-2 max-h-96 overflow-y-auto scrollbar-thin"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-12 bg-gradient-to-r from-gray-900/40 to-gray-800/40 backdrop-blur-md text-white text-center py-4">
+    <p class="text-sm">
+      Made with ❤️ by : 
+      <a href="https://t.me/shetozx" target="_blank" class="text-cyan-300 hover:text-cyan-400 underline transition font-semibold">
+        shetozx
+      </a>
+    </p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/translations.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/room.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/profile.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
